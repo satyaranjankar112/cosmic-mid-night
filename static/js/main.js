@@ -19,34 +19,48 @@ function init() {
     const todayStr = new Date().toISOString().split('T')[0];
     const sd = document.getElementById('start-date');
     const ed = document.getElementById('end-date');
-    if (sd && !sd.value) sd.value = todayStr;
-    if (ed && !ed.value) ed.value = todayStr;
+    
+    if (sd) sd.value = todayStr;
+    if (ed) ed.value = todayStr;
 
     // default fetch uses selected dates (or today)
-    fetchAsteroidData(sd ? sd.value : null, ed ? ed.value : null);
+    const startVal = sd ? sd.value : todayStr;
+    const endVal = ed ? ed.value : todayStr;
+    fetchAsteroidData(startVal, endVal);
 
     // init watchlist from storage and wire UI
     loadWatchlistFromStorage();
     updateWatchlistUI();
 
+    // Wire refresh button
     const refresh = document.getElementById('refresh-btn');
-    if (refresh) refresh.addEventListener('click', () => {
-        const sdVal = document.getElementById('start-date')?.value || null;
-        const edVal = document.getElementById('end-date')?.value || null;
-        fetchAsteroidData(sdVal, edVal);
-    });
+    if (refresh) {
+        refresh.addEventListener('click', () => {
+            const sdVal = document.getElementById('start-date')?.value || null;
+            const edVal = document.getElementById('end-date')?.value || null;
+            fetchAsteroidData(sdVal, edVal);
+        });
+    }
+    
+    // Wire filter
     const filter = document.getElementById('filter-risk');
     if (filter) filter.addEventListener('change', renderAsteroids);
+    
+    // Wire sort
     const sort = document.getElementById('sort-by');
     if (sort) sort.addEventListener('change', renderAsteroids);
-    // date search button
+    
+    // Wire date search button
     const dateBtn = document.getElementById('date-search-btn');
-    if (dateBtn) dateBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const sdVal = document.getElementById('start-date')?.value || null;
-        const edVal = document.getElementById('end-date')?.value || null;
-        fetchAsteroidData(sdVal, edVal);
-    });
+    if (dateBtn) {
+        dateBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const sdVal = document.getElementById('start-date')?.value;
+            const edVal = document.getElementById('end-date')?.value;
+            console.log('Date search clicked:', sdVal, edVal);
+            fetchAsteroidData(sdVal || null, edVal || null);
+        });
+    }
 }
 
 if (document.readyState === 'loading') {

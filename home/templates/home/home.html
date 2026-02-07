@@ -1757,6 +1757,35 @@ button:focus {
   color: var(--color-text-muted);
   line-height: 1.6;
 }
+
+/* Date Input Styling */
+.filter-input {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(125, 249, 255, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-light);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.filter-input:hover,
+.filter-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--glow-primary);
+  outline: none;
+}
+
+/* Date input calendar styling */
+.filter-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  cursor: pointer;
+}
+
   </style>
 </head>
 <body>
