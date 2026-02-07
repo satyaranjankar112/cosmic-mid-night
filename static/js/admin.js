@@ -338,13 +338,9 @@ function injectAdvancedControls() {
         const modal = document.getElementById('analytics-modal');
         if (modal) modal.style.display = 'block';
     });
-    document.getElementById('compare-btn')?.addEventListener('click', () => {
-        const modal = document.getElementById('compare-modal');
-        if (modal) modal.style.display = 'block';
-    });
+    document.getElementById('compare-btn')?.addEventListener('click', openCompareModal);
     document.getElementById('export-json-btn').addEventListener('click', exportJSON);
     document.getElementById('analytics-btn').addEventListener('click', openAnalyticsDashboard);
-    document.getElementById('compare-btn').addEventListener('click', openCompareModal);
     
     // Real-time filtering
     ['min-diameter', 'max-diameter', 'max-distance', 'min-velocity', 'pha-filter', 'sort-by'].forEach(id => {
@@ -609,10 +605,10 @@ function renderAsteroidFeed(asteroids) {
                 <button type="button" class="view-details-btn" data-id="${a.id}" onclick="typeof openAsteroidProfile==='function'&&openAsteroidProfile(this.dataset.id)" style="font-size: 12px; padding: 6px; cursor: pointer; background: #00c3ff; border: none; color: #000;">
                     🔬 Details
                 </button>
-                <button type="button" class="add-watchlist-btn" data-id="${a.id}" style="font-size: 12px; padding: 6px; background: ${watchlist.includes(a.id) ? '#666' : 'cyan'}; cursor: pointer; border: none; color: #000;">
-                    ${watchlist.includes(a.id) ? '⭐' : '☆'}
+                <button type="button" class="add-watchlist-btn" data-id="${a.id}" style="font-size: 12px; padding: 6px; background: ${(watchlist||[]).some(wid=>wid==a.id) ? '#666' : 'cyan'}; cursor: pointer; border: none; color: #000;">
+                    ${(watchlist||[]).some(wid=>wid==a.id) ? '⭐' : '☆'}
                 </button>
-                <button type="button" class="compare-btn" data-id="${a.id}" style="font-size: 12px; padding: 6px; background: #ff8800; cursor: pointer; border: none; color: white;">
+                <button type="button" class="compare-btn" data-id="${a.id}" onclick="typeof toggleCompareSelection==='function'&&toggleCompareSelection(this.dataset.id)" style="font-size: 12px; padding: 6px; background: ${compareSelection.some(cid=>cid==a.id)?'#00ff88':'#ff8800'}; cursor: pointer; border: none; color: ${compareSelection.some(cid=>cid==a.id)?'#000':'white'};">
                     ⚖️
                 </button>
             </div>
@@ -1036,8 +1032,12 @@ function openCompareModal() {
         return;
     }
     
-    const a1 = allAsteroids.find(a => a.id === compareSelection[0]);
-    const a2 = allAsteroids.find(a => a.id === compareSelection[1]);
+    const a1 = allAsteroids.find(a => a.id == compareSelection[0]);
+    const a2 = allAsteroids.find(a => a.id == compareSelection[1]);
+    if (!a1 || !a2) {
+        alert('❌ Could not find selected asteroids. Try selecting again.');
+        return;
+    }
     
     const content = `
         <table style="width: 100%; border-collapse: collapse; color: white;">
@@ -1098,19 +1098,21 @@ function createCompareRow(label, val1, val2, highlightMax = false) {
 // WATCHLIST & ALERTS
 // ========================
 function addToWatchlist(id) {
-    if (watchlist.includes(id)) {
+    const wl = watchlist || [];
+    if (wl.some(wid => wid == id)) {
         removeFromWatchlist(id);
         return;
     }
     
-    watchlist.push(id);
+    wl.push(id);
+    watchlist = wl;
     localStorage.setItem('researcher_watchlist', JSON.stringify(watchlist));
     renderWatchlist();
     applyFiltersAndRender();
 }
 
 function removeFromWatchlist(id) {
-    watchlist = watchlist.filter(wid => wid !== id);
+    watchlist = (watchlist || []).filter(wid => wid != id);
     localStorage.setItem('researcher_watchlist', JSON.stringify(watchlist));
     renderWatchlist();
     applyFiltersAndRender();
@@ -1119,13 +1121,13 @@ function removeFromWatchlist(id) {
 function renderWatchlist() {
     const container = document.getElementById('watchlist');
     
-    if (watchlist.length === 0) {
+    if (!watchlist || watchlist.length === 0) {
         container.innerHTML = '<li style="color: #888;">No items in watchlist</li>';
         return;
     }
     
-    container.innerHTML = watchlist.map(id => {
-        const asteroid = allAsteroids.find(a => a.id === id);
+    container.innerHTML = (watchlist || []).map(id => {
+        const asteroid = allAsteroids.find(a => a.id == id);
         if (!asteroid) return '';
         return `
             <li style="margin-bottom: 8px; font-size: 13px;">
@@ -1263,6 +1265,7 @@ function closeModal(modalId) {
 
 window.closeModal = closeModal;
 window.openAsteroidProfile = openAsteroidProfile;
+window.toggleCompareSelection = toggleCompareSelection;
 
 // ========================
 // CHART.JS CDN LOADER
