@@ -15,18 +15,38 @@ let watchlist = [];
 
 // --- Initialization ---
 function init() {
-    fetchAsteroidData();
+    // initialize date inputs with today
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sd = document.getElementById('start-date');
+    const ed = document.getElementById('end-date');
+    if (sd && !sd.value) sd.value = todayStr;
+    if (ed && !ed.value) ed.value = todayStr;
+
+    // default fetch uses selected dates (or today)
+    fetchAsteroidData(sd ? sd.value : null, ed ? ed.value : null);
 
     // init watchlist from storage and wire UI
     loadWatchlistFromStorage();
     updateWatchlistUI();
 
     const refresh = document.getElementById('refresh-btn');
-    if (refresh) refresh.addEventListener('click', fetchAsteroidData);
+    if (refresh) refresh.addEventListener('click', () => {
+        const sdVal = document.getElementById('start-date')?.value || null;
+        const edVal = document.getElementById('end-date')?.value || null;
+        fetchAsteroidData(sdVal, edVal);
+    });
     const filter = document.getElementById('filter-risk');
     if (filter) filter.addEventListener('change', renderAsteroids);
     const sort = document.getElementById('sort-by');
     if (sort) sort.addEventListener('change', renderAsteroids);
+    // date search button
+    const dateBtn = document.getElementById('date-search-btn');
+    if (dateBtn) dateBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const sdVal = document.getElementById('start-date')?.value || null;
+        const edVal = document.getElementById('end-date')?.value || null;
+        fetchAsteroidData(sdVal, edVal);
+    });
 }
 
 if (document.readyState === 'loading') {
@@ -36,7 +56,7 @@ if (document.readyState === 'loading') {
 }
 
 // --- Data Fetching ---
-async function fetchAsteroidData() {
+async function fetchAsteroidData(startDate = null, endDate = null) {
     const loading = document.getElementById('loading');
     const container = document.getElementById('asteroid-container');
     
@@ -45,16 +65,41 @@ async function fetchAsteroidData() {
 
     try {
         const today = new Date().toISOString().split('T')[0];
-        const response = await fetch(`${BASE_URL}?start_date=${today}&api_key=${API_KEY}`);
+        const start = startDate || today;
+        const end = endDate || start;
+
+        // validate date order
+        let sDate = new Date(start);
+        let eDate = new Date(end);
+        if (eDate < sDate) {
+            // swap
+            const tmp = sDate; sDate = eDate; eDate = tmp;
+        }
+
+        // limit to 7-day window (API restriction)
+        const maxWindowDays = 7;
+        const diffDays = Math.floor((eDate - sDate) / (1000 * 60 * 60 * 24)) + 1;
+        if (diffDays > maxWindowDays) {
+            // clamp end date
+            const clampedEnd = new Date(sDate);
+            clampedEnd.setDate(clampedEnd.getDate() + (maxWindowDays - 1));
+            eDate = clampedEnd;
+        }
+
+        const sStr = sDate.toISOString().split('T')[0];
+        const eStr = eDate.toISOString().split('T')[0];
+
+        const response = await fetch(`${BASE_URL}?start_date=${sStr}&end_date=${eStr}&api_key=${API_KEY}`);
         const data = await response.json();
-        
-        // Flatten the NASA object into a clean array
-        const rawList = data.near_earth_objects[today] || [];
+
+        // Flatten the NASA object into a clean array across the date range
+        const rawList = Object.values(data.near_earth_objects || {}).flat();
         asteroids = processAsteroidData(rawList);
         
         updateSummaryStats();
         renderAsteroids();
-        document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        postFetchRefresh();
+        document.getElementById('last-updated').textContent = sStr === eStr ? `${sStr} ${new Date().toLocaleTimeString()}` : `${sStr} → ${eStr} ${new Date().toLocaleTimeString()}`;
     } catch (error) {
         console.error("Error fetching space data:", error);
         container.innerHTML = `<p class='error'>Failed to load cosmic data. Please check connection.</p>`;
